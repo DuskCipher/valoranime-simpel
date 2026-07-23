@@ -131,37 +131,6 @@ export default function NovelReadPage() {
   // History & EXP Sync
   useEffect(() => {
     if (data && data.novel && user) {
-      const novelUrl = `/novel/detail/${data.novel.slug}`;
-
-      const syncHistory = async () => {
-        let poster = data.novel.poster || '';
-        if (!poster && data.novel.slug) {
-          try {
-            const detailRes = await fetch(`/api/novel/sakuranovel/detail/${data.novel.slug.replace('sakura-', '')}`);
-            const detailJson = await detailRes.json();
-            const payload = detailJson?.data || detailJson?.result;
-            if (payload?.thumbnail || payload?.poster || payload?.image) {
-              poster = payload.thumbnail || payload.poster || payload.image;
-            }
-          } catch (e) {
-            console.error("Failed to fetch novel poster for history fallback", e);
-          }
-        }
-
-        supabase.from('user_history').upsert({
-          user_id: user.id,
-          item_url: novelUrl,
-          title: data.novel.title,
-          category: 'Novel',
-          poster: poster,
-          last_episode: chapterId.replace('sakura-', '').split('-').pop() || '1',
-          updated_at: new Date().toISOString()
-        } as any, { onConflict: 'user_id,item_url' } as any).then();
-      };
-      
-      syncHistory();
-
-      // Add EXP
       if (!sessionStorage.getItem(`exp_read_novel_${chapterId}`)) {
         fetch('/api/add-exp', {
           method: 'POST',
@@ -169,7 +138,6 @@ export default function NovelReadPage() {
           body: JSON.stringify({ userId: user.id, action: 'read', amount: 5 })
         }).then(() => {
           sessionStorage.setItem(`exp_read_novel_${chapterId}`, 'true');
-          supabase.auth.refreshSession();
         }).catch(console.error);
       }
     }

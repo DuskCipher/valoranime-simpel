@@ -143,27 +143,14 @@ export default function AnimeWatchPage() {
           });
           localStorage.setItem('valora_anime_history', JSON.stringify(hist.slice(0, 20)));
 
-          if (user) {
-            await supabase.from('user_history').upsert({
-              user_id: user.id,
-              item_url: parsedAnimeId,
-              title: parsedAnimeId,
-              category: 'Anime',
-              poster: poster,
-              last_episode: epsNum,
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id,item_url' });
-
-            if (!sessionStorage.getItem(`exp_watch_anime_${slug}`)) {
-              fetch('/api/add-exp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: user.id, action: 'watch', amount: 5 })
-              }).then(() => {
-                sessionStorage.setItem(`exp_watch_anime_${slug}`, 'true');
-                supabase.auth.refreshSession();
-              }).catch(console.error);
-            }
+          if (user && !sessionStorage.getItem(`exp_watch_anime_${slug}`)) {
+            fetch('/api/add-exp', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: user.id, action: 'watch', amount: 5 })
+            }).then(() => {
+              sessionStorage.setItem(`exp_watch_anime_${slug}`, 'true');
+            }).catch(console.error);
           }
         } catch (e) {
           console.error("History sync error", e);

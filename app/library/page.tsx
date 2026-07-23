@@ -6,7 +6,6 @@ import { BookOpen, Clock, PlayCircle, Trash2, Play, Heart, HeartOff } from 'luci
 import WidgetTitle from '../components/WidgetTitle';
 
 import { useAuth } from '@/app/components/AuthProvider';
-import { supabase } from '@/lib/supabase';
 
 export default function LibraryPage() {
   const { user } = useAuth();

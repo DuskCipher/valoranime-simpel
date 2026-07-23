@@ -19,27 +19,23 @@ function NovelDetailContent() {
   const [bookmarkCat, setBookmarkCat] = useState('ongoing');
 
   useEffect(() => {
-    const checkBookmark = async () => {
-      if (user && id) {
+    const checkBookmark = () => {
+      if (id) {
         try {
-          const { data } = await supabase
-            .from('user_bookmarks')
-            .select('item_url, category')
-            .eq('user_id', user.id)
-            .eq('item_url', `/novel/${id}`)
-            .single();
-          
-          if (data) {
+          const bms = JSON.parse(localStorage.getItem('valora_novel_bookmarks') || '[]');
+          const url = `/novel/${id}`;
+          const found = bms.find((b: any) => b.item_url === url || b.url === url || b.novelUrl === url);
+          if (found) {
             setIsBookmarked(true);
-            setBookmarkCat(data.category || 'Novel');
+            setBookmarkCat(found.category || 'Novel');
+          } else {
+            setIsBookmarked(false);
           }
         } catch(e) {}
-      } else {
-        setIsBookmarked(false);
       }
     };
     checkBookmark();
-  }, [id, user]);
+  }, [id]);
 
   useEffect(() => {
     if (id) {
@@ -52,36 +48,37 @@ function NovelDetailContent() {
     }
   }, [id]);
 
-  const toggleBookmark = async () => {
+  const toggleBookmark = () => {
     if (!id || !novel) return;
-    if (!user) {
-      alert('Silakan login untuk menambahkan ke Watchlist!');
-      return;
-    }
     try {
       const url = `/novel/${id}`;
+      const bms: any[] = JSON.parse(localStorage.getItem('valora_novel_bookmarks') || '[]');
       if (isBookmarked) {
-        await supabase.from('user_bookmarks').delete().match({ user_id: user.id, item_url: url });
+        const updated = bms.filter(b => b.item_url !== url && b.url !== url && b.novelUrl !== url);
+        localStorage.setItem('valora_novel_bookmarks', JSON.stringify(updated));
         setIsBookmarked(false);
       } else {
-        await supabase.from('user_bookmarks').upsert({
-          user_id: user.id,
+        bms.unshift({
           item_url: url,
           title: novel.title,
           poster: novel.thumbnail,
-          category: 'Novel'
-        }, { onConflict: 'user_id,item_url' });
+          category: 'Novel',
+          created_at: new Date().toISOString()
+        });
+        localStorage.setItem('valora_novel_bookmarks', JSON.stringify(bms));
         setIsBookmarked(true);
         setBookmarkCat('Novel');
       }
     } catch (e) {}
   };
 
-  const changeBookmarkCategory = async (newCat: string) => {
-    if (!id || !user) return;
+  const changeBookmarkCategory = (newCat: string) => {
+    if (!id) return;
     try {
       const url = `/novel/${id}`;
-      await supabase.from('user_bookmarks').update({ category: newCat }).match({ user_id: user.id, item_url: url });
+      const bms: any[] = JSON.parse(localStorage.getItem('valora_novel_bookmarks') || '[]');
+      const updated = bms.map(b => (b.item_url === url || b.url === url) ? { ...b, category: newCat } : b);
+      localStorage.setItem('valora_novel_bookmarks', JSON.stringify(updated));
       setBookmarkCat(newCat);
     } catch (e) {}
   };

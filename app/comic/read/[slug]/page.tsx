@@ -130,27 +130,13 @@ export default function ComicReadPage() {
             });
             localStorage.setItem('valora_history', JSON.stringify(hist.slice(0, 20)));
 
-            if (user) {
-              supabase.from('user_history').upsert({
-                user_id: user.id,
-                item_url: `/comic/detail/${comicSlug}`,
-                title: detailJson.title,
-                category: 'Comic',
-                poster: detailJson.poster || detailJson.image || '',
-                last_episode: slug.split('-').pop() || '1',
-                updated_at: new Date().toISOString()
-              } as any, { onConflict: 'user_id,item_url' } as any).then();
-
-              if (!sessionStorage.getItem(`exp_read_comic_${slug}`)) {
-                fetch('/api/add-exp', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ userId: user.id, action: 'read', amount: 5 })
-                }).then(() => {
-                  sessionStorage.setItem(`exp_read_comic_${slug}`, 'true');
-                  supabase.auth.refreshSession();
-                }).catch(console.error);
-              }
+            if (user && !sessionStorage.getItem(`exp_read_comic_${slug}`)) {
+              fetch('/api/add-exp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.id, action: 'read', amount: 5 })
+              }).then(() => {
+              }).catch(console.error);
             }
           }
         } catch (e) { }

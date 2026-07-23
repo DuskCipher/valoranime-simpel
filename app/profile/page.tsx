@@ -123,99 +123,24 @@ export default function ProfilePage() {
   }, [user]);
 
   const fetchData = async () => {
-    if (!user) return;
     setLoadingData(true);
-    
-    const { data: actData } = await supabase.from('user_activities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50);
-    if (actData) setActivities(actData);
+    try {
+      const hist = JSON.parse(localStorage.getItem('valora_history') || '[]');
+      setHistory(hist);
 
-    const { data: histData } = await supabase.from('user_history').select('*').eq('user_id', user.id).order('updated_at', { ascending: false });
-    if (histData) {
-      setHistory(histData);
-      
-      // Auto-repair missing posters in background
-      const itemsNeedingPoster = histData.filter((h: any) => !h.poster && h.item_url);
-      if (itemsNeedingPoster.length > 0) {
-        const repairPosters = async () => {
-          const updated: any[] = [...histData];
-          for (const item of itemsNeedingPoster) {
-            try {
-              let poster = '';
-              const cat = (item.category || '').toLowerCase();
-              const url = item.item_url || '';
-              
-              if (cat === 'anime') {
-                // item_url is typically the animeId/slug
-                const res = await fetch(`/api/anime/anime/${url}`);
-                const json = await res.json();
-                const detail = json?.data || json?.anime_detail || json;
-                poster = detail?.poster || detail?.thumb || detail?.thumbnail || '';
-              } else if (cat === 'novel') {
-                // item_url is like /novel/detail/sakura-slug
-                const slug = url.replace('/novel/detail/', '').replace('sakura-', '');
-                if (slug) {
-                  const res = await fetch(`/api/novel/sakuranovel/detail/${slug}`);
-                  const json = await res.json();
-                  const detail = json?.data || json?.result;
-                  poster = detail?.thumbnail || detail?.poster || detail?.image || detail?.cover || '';
-                }
-              } else if (cat === 'donghua' || cat === 'komik' || cat === 'webtoon' || cat === 'comic') {
-                // Try generic detail endpoint
-                if (url.startsWith('http')) {
-                  const res = await fetch(`/api/detail?url=${encodeURIComponent(url)}`);
-                  const json = await res.json();
-                  poster = json?.thumbnail || json?.poster || json?.image || '';
-                }
-              }
-              
-              if (poster) {
-                // Update in-memory state
-                const idx = updated.findIndex((h: any) => h.item_url === item.item_url);
-                if (idx !== -1) updated[idx] = { ...updated[idx], poster };
-                
-                // Update database
-                supabase.from('user_history').update({ poster }).match({ user_id: user.id, item_url: user.id, item_url: item.item_url }).then();
-              }
-            } catch (e) {
-              // Silently skip failed repairs
-            }
-          }
-          setHistory(updated);
-        };
-        repairPosters();
-      }
+      const bms = JSON.parse(localStorage.getItem('valora_bookmarks') || '[]');
+      setBookmarks(bms);
+
+      const sc = JSON.parse(localStorage.getItem('valora_showcase') || '[]');
+      setShowcase(sc);
+
+      const theme = localStorage.getItem('profileTheme') || 'amber';
+      setThemeColor(theme);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingData(false);
     }
-
-    // Load bookmarks from Supabase
-    const { data: bkmData } = await supabase.from('user_bookmarks').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-    if (bkmData) {
-      setBookmarks(bkmData);
-    } else {
-      setBookmarks([]);
-    }
-
-    // Fetch real badges
-    const { data: badgeData } = await supabase.from('user_badges').select('*').eq('user_id', user.id);
-    if (badgeData) setBadges(badgeData);
-
-    // Fetch real showcase
-    const { data: scData } = await supabase.from('user_showcase').select('*').eq('user_id', user.id).order('position_index', { ascending: true });
-    if (scData) setShowcase(scData);
-
-    // Fetch followers/following counts
-    const { count: fwersCount } = await supabase.from('user_follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id);
-    setFollowersCount(fwersCount || 0);
-    const { count: fwingCount } = await supabase.from('user_follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id);
-    setFollowingCount(fwingCount || 0);
-
-    // Fetch theme from profiles
-    const { data: profData } = await supabase.from('profiles').select('theme_color').eq('id', user.id).single();
-    if (profData?.theme_color) {
-      setThemeColor(profData.theme_color);
-      localStorage.setItem('profileTheme', profData.theme_color);
-    }
-    
-    setLoadingData(false);
   };
 
   const handleLogout = async () => { await signOut(); window.location.href = '/login'; };
@@ -236,19 +161,13 @@ export default function ProfilePage() {
   };
 
   const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setIsUploadingBanner(true);
-      try {
-        const formData = new FormData();
-        formData.append('file', e.target.files[0]);
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json();
-          await updateUserMeta({ banner_url: url });
-          await supabase.from('profiles').update({ banner_url: url }).eq('id', user?.id);
-        }
-      } catch { alert('Gagal mengupload banner'); }
-      finally { setIsUploadingBanner(false); }
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target?.result as string;
+        updateUserMeta({ banner_url: url });
+      };
+      reader.readAsDataURL(e.target.files[0]);
     }
   };
 
@@ -256,24 +175,27 @@ export default function ProfilePage() {
     e.preventDefault();
     setIsUpdating(true);
     try {
-      let finalAvatarUrl = user?.user_metadata?.avatar_url || '';
+      let finalAvatarUrl = user?.user_metadata?.avatar_url || '/avatar.jpeg';
       if (avatarFile) {
-        const formData = new FormData();
-        formData.append('file', avatarFile);
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-        if (uploadRes.ok) { const { url } = await uploadRes.json(); finalAvatarUrl = url; }
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          finalAvatarUrl = event.target?.result as string;
+          await updateUserMeta({ display_name: editName, avatar_url: finalAvatarUrl, bio: editBio });
+          setShowEditModal(false);
+          setIsUpdating(false);
+        };
+        reader.readAsDataURL(avatarFile);
+        return;
       }
       await updateUserMeta({ display_name: editName, avatar_url: finalAvatarUrl, bio: editBio });
-      await supabase.from('profiles').update({ bio: editBio }).eq('id', user?.id);
       setShowEditModal(false);
     } catch { alert('Terjadi kesalahan saat mengupdate profil'); }
     finally { setIsUpdating(false); }
   };
 
-  const handleThemeChange = async (color: string) => {
+  const handleThemeChange = (color: string) => {
     setThemeColor(color);
     localStorage.setItem('profileTheme', color);
-    if (user) await supabase.from('profiles').update({ theme_color: color }).eq('id', user.id);
   };
 
   // Showcase: search from history/bookmarks
@@ -285,42 +207,45 @@ export default function ProfilePage() {
     setShowcaseSearchResults(unique.filter(i => i.title?.toLowerCase().includes(q)).slice(0, 10));
   };
 
-  const addToShowcase = async (item: any) => {
-    if (!user || showcase.length >= 10) return;
-    setAddingShowcase(true);
-    const { error } = await supabase.from('user_showcase').insert({
-      user_id: user.id,
-      item_title: item.title,
-      item_image: item.poster || item.image || item.image_url || item.thumbnail || '',
-      item_type: item.category || 'Donghua',
-      item_url: item.item_url || item.href || '',
-      position_index: showcase.length + 1
-    });
-    if (!error) {
-      await fetchData();
+  const addToShowcase = (item: any) => {
+    if (showcase.length >= 10) return;
+    try {
+      const newShowcase = [...showcase, {
+        id: Date.now().toString(),
+        item_title: item.title,
+        item_image: item.poster || item.image || item.image_url || item.thumbnail || '',
+        item_type: item.category || 'Donghua',
+        item_url: item.item_url || item.href || '',
+      }];
+      setShowcase(newShowcase);
+      localStorage.setItem('valora_showcase', JSON.stringify(newShowcase));
       setShowcaseSearch('');
       setShowcaseSearchResults([]);
-    }
-    setAddingShowcase(false);
+    } catch (e) {}
   };
 
-  const removeFromShowcase = async (id: string) => {
-    await supabase.from('user_showcase').delete().eq('id', id);
-    await fetchData();
+  const removeFromShowcase = (id: string) => {
+    try {
+      const updated = showcase.filter(s => s.id !== id);
+      setShowcase(updated);
+      localStorage.setItem('valora_showcase', JSON.stringify(updated));
+    } catch (e) {}
   };
 
-  const removeItem = async (e: React.MouseEvent, item_url: string, isHistory: boolean) => {
+  const removeItem = (e: React.MouseEvent, item_url: string, isHistory: boolean) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) return;
-    
-    if (isHistory) {
-      setHistory(prev => prev.filter(i => i.item_url !== item_url));
-      await supabase.from('user_history').delete().match({ user_id: user.id, item_url });
-    } else {
-      setBookmarks(prev => prev.filter(i => i.item_url !== item_url));
-      await supabase.from('user_bookmarks').delete().match({ user_id: user.id, item_url });
-    }
+    try {
+      if (isHistory) {
+        const updated = history.filter(i => i.item_url !== item_url && i.novelUrl !== item_url);
+        setHistory(updated);
+        localStorage.setItem('valora_history', JSON.stringify(updated));
+      } else {
+        const updated = bookmarks.filter(i => i.item_url !== item_url && i.url !== item_url);
+        setBookmarks(updated);
+        localStorage.setItem('valora_bookmarks', JSON.stringify(updated));
+      }
+    } catch (e) {}
   };
 
   const handleReportError = async (e: React.FormEvent) => {
@@ -859,8 +784,7 @@ export default function ProfilePage() {
                     <ToggleSwitch checked={isDark} onChange={() => { const n = !isDark; setIsDark(n); if(n){document.documentElement.classList.add("dark"); localStorage.setItem("theme","dark")}else{document.documentElement.classList.remove("dark"); localStorage.setItem("theme","light")} }} />
                   </div>
 
-                  {/* Security */}
-                  <button onClick={async () => { const np = prompt("Masukkan password baru:"); if(np && np.length >= 6){ const {error} = await supabase.auth.updateUser({password: np}); if(error) alert(error.message); else alert("Password berhasil diubah!"); } else if(np) alert("Password harus minimal 6 karakter") }}
+                  <button onClick={() => alert('Password disimpen di akun lokal anda.')}
                     className="bg-zinc-900/50 border border-zinc-800/40 rounded-xl p-4 flex justify-between items-center hover:bg-zinc-800/30 transition-colors group text-left w-full">
                     <div className="flex items-center gap-3">
                       <div className="w-7 h-7 rounded-lg bg-zinc-800 flex items-center justify-center"><Key size={12} className="text-zinc-400" /></div>

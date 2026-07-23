@@ -73,43 +73,40 @@ export default function NovelDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    const checkBookmark = async () => {
-      if (user && data) {
+    const checkBookmark = () => {
+      if (data && id) {
         try {
-          const { data: bkm } = await supabase
-            .from('user_bookmarks')
-            .select('item_url')
-            .eq('user_id', user.id)
-            .eq('item_url', `/novel/detail/${id}`)
-            .single();
-          if (bkm) setIsBookmarked(true);
+          const url = `/novel/detail/${id}`;
+          const bms = JSON.parse(localStorage.getItem('valora_novel_bookmarks') || '[]');
+          const found = bms.find((b: any) => b.item_url === url || b.url === url);
+          if (found) setIsBookmarked(true);
+          else setIsBookmarked(false);
         } catch (e) {}
-      } else {
-        setIsBookmarked(false);
       }
     };
     checkBookmark();
-  }, [data, id, user]);
+  }, [data, id]);
 
   const chapters: any[] = data?.chapters || [];
 
-  const toggleBookmark = async () => {
-    if (!user) {
-      alert('Silakan login untuk menambahkan ke Watchlist!');
-      return;
-    }
+  const toggleBookmark = () => {
+    if (!data || !id) return;
     try {
+      const url = `/novel/detail/${id}`;
+      const bms: any[] = JSON.parse(localStorage.getItem('valora_novel_bookmarks') || '[]');
       if (isBookmarked) {
-        await supabase.from('user_bookmarks').delete().match({ user_id: user.id, item_url: `/novel/detail/${id}` });
+        const updated = bms.filter(b => b.item_url !== url && b.url !== url);
+        localStorage.setItem('valora_novel_bookmarks', JSON.stringify(updated));
         setIsBookmarked(false);
       } else {
-        await supabase.from('user_bookmarks').upsert({
-          user_id: user.id,
-          item_url: `/novel/detail/${id}`,
+        bms.unshift({
+          item_url: url,
           title: data.title,
           poster: getImageUrl(data),
-          category: 'Novel'
-        }, { onConflict: 'user_id,item_url' });
+          category: 'Novel',
+          created_at: new Date().toISOString()
+        });
+        localStorage.setItem('valora_novel_bookmarks', JSON.stringify(bms));
         setIsBookmarked(true);
       }
     } catch (e) {}

@@ -27,25 +27,20 @@ export default function AnimeDetailPage() {
   const [isBookmarked, setIsBookmarked] = useState(false);
 
   useEffect(() => {
-    const checkBookmark = async () => {
-      if (user) {
+    const checkBookmark = () => {
+      if (slug) {
         try {
-          const { data } = await supabase
-            .from('user_bookmarks')
-            .select('item_url')
-            .eq('user_id', user.id)
-            .eq('item_url', `/anime/${source}/detail/${slug}`)
-            .single();
-          
-          if (data) setIsBookmarked(true);
+          const url = `/anime/${source}/detail/${slug}`;
+          const bms = JSON.parse(localStorage.getItem('valora_bookmarks') || '[]');
+          const found = bms.find((b: any) => b.item_url === url || b.url === url || b.item_url === slug);
+          if (found) setIsBookmarked(true);
+          else setIsBookmarked(false);
         } catch (e) {}
-      } else {
-        setIsBookmarked(false);
       }
     };
     
     checkBookmark();
-  }, [slug, user]);
+  }, [slug, source]);
 
   useEffect(() => {
     if (!slug) return;
@@ -210,23 +205,23 @@ export default function AnimeDetailPage() {
             <Play size={16} className="fill-current" /> Tonton
           </Link>
           <button 
-            onClick={async () => {
-              if (!user) {
-                alert('Silakan login untuk menambahkan ke Watchlist!');
-                return;
-              }
+            onClick={() => {
               try {
+                const url = `/anime/${source}/detail/${slug}`;
+                const bms: any[] = JSON.parse(localStorage.getItem('valora_bookmarks') || '[]');
                 if (isBookmarked) {
-                  await supabase.from('user_bookmarks').delete().match({ user_id: user.id, item_url: `/anime/${source}/detail/${slug}` });
+                  const updated = bms.filter(b => b.item_url !== url && b.url !== url && b.item_url !== slug);
+                  localStorage.setItem('valora_bookmarks', JSON.stringify(updated));
                   setIsBookmarked(false);
                 } else {
-                  await supabase.from('user_bookmarks').upsert({ 
-                    user_id: user.id, 
-                    item_url: `/anime/${source}/detail/${slug}`, 
-                    title: detail.title, 
-                    poster: detail.poster || detail.thumb, 
-                    category: 'Anime' 
-                  }, { onConflict: 'user_id,item_url' });
+                  bms.unshift({
+                    item_url: url,
+                    title: detail.title,
+                    poster: detail.poster || detail.thumb,
+                    category: 'Anime',
+                    created_at: new Date().toISOString()
+                  });
+                  localStorage.setItem('valora_bookmarks', JSON.stringify(bms));
                   setIsBookmarked(true);
                 }
               } catch(e) {}

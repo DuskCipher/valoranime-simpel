@@ -23,44 +23,38 @@ export default function ComicDetailPage() {
   const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
-    const checkBookmark = async () => {
-      if (user && data) {
+    const checkBookmark = () => {
+      if (data && slug) {
         try {
-          const { data: bkm } = await supabase
-            .from('user_bookmarks')
-            .select('item_url')
-            .eq('user_id', user.id)
-            .eq('item_url', slug)
-            .single();
-          
-          if (bkm) setIsBookmarked(true);
+          const bms = JSON.parse(localStorage.getItem('valora_comic_bookmarks') || '[]');
+          const found = bms.find((b: any) => b.item_url === slug || b.slug === slug || b.url === slug);
+          if (found) setIsBookmarked(true);
+          else setIsBookmarked(false);
         } catch (e) {}
-      } else {
-        setIsBookmarked(false);
       }
     };
     
     checkBookmark();
-  }, [data, slug, user]);
+  }, [data, slug]);
 
-  const toggleBookmark = async () => {
-    if (!user) {
-      alert('Silakan login untuk menambahkan ke Watchlist!');
-      return;
-    }
-    
+  const toggleBookmark = () => {
+    if (!data || !slug) return;
     try {
+      const bms: any[] = JSON.parse(localStorage.getItem('valora_comic_bookmarks') || '[]');
       if (isBookmarked) {
-        await supabase.from('user_bookmarks').delete().match({ user_id: user.id, item_url: slug });
+        const updated = bms.filter(b => b.item_url !== slug && b.slug !== slug && b.url !== slug);
+        localStorage.setItem('valora_comic_bookmarks', JSON.stringify(updated));
         setIsBookmarked(false);
       } else {
-        await supabase.from('user_bookmarks').upsert({
-          user_id: user.id,
+        bms.unshift({
           item_url: slug,
+          slug: slug,
           title: data.title,
           poster: data.image || data.poster || data.thumbnail,
-          category: 'Komik'
-        }, { onConflict: 'user_id,item_url' });
+          category: 'Komik',
+          created_at: new Date().toISOString()
+        });
+        localStorage.setItem('valora_comic_bookmarks', JSON.stringify(bms));
         setIsBookmarked(true);
       }
     } catch (e) {}

@@ -8,7 +8,6 @@ import Sidebar from '@/app/components/Sidebar';
 import AnimeCard3 from '@/app/anime/components/AnimeCard3';
 
 import { useAuth } from '@/app/components/AuthProvider';
-import { supabase } from '@/lib/supabase';
 
 export default function NovelBookmarksPage() {
   const router = useRouter();

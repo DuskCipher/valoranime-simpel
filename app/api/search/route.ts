@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchWebtoons } from "@/lib/webtoons-api";
 import { searchMangaDex } from "@/lib/mangadex-api";
+import { searchNovels } from "@/lib/novel-api";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -14,13 +15,8 @@ export async function GET(req: NextRequest) {
       const data = await searchMangaDex(q);
       return NextResponse.json(data);
     } else if (source === "novels") {
-      const { supabase } = await import("@/lib/supabase");
-      const { data, error } = await supabase
-        .from("novels")
-        .select("*, chapters(id)")
-        .or(`title.ilike.%${q}%,author.ilike.%${q}%`);
-      if (error) throw error;
-      return NextResponse.json({ items: data || [] });
+      const data = await searchNovels(q);
+      return NextResponse.json(data);
     } else {
       const data = await searchWebtoons(q);
       return NextResponse.json(data);
