@@ -26,6 +26,7 @@ function SidebarContent() {
   let searchPrefix = '/search?q=';
   let menuTitle = "Menu Donghua";
   let menuLinks = [
+    { label: "Valora Hub", href: "/valora" },
     { label: "Sedang Berjalan (Ongoing)", href: "/ongoing" },
     { label: "Sudah Tamat (Completed)", href: "/completed" },
     { label: "Jadwal Rilis", href: "/donghua/jadwal" },
@@ -37,6 +38,7 @@ function SidebarContent() {
     menuTitle = `Menu Anime`;
     
     menuLinks = [
+      { label: "Valora Hub", href: "/valora" },
       { label: "Beranda", href: `/anime/${animeSource}` },
       { label: "Sedang Berjalan (Ongoing)", href: `/anime/${animeSource}/ongoing` },
       { label: "Sudah Tamat (Completed)", href: `/anime/${animeSource}/completed` },
@@ -47,6 +49,7 @@ function SidebarContent() {
     searchPrefix = '/comic/search?q=';
     menuTitle = "Menu Komik";
     menuLinks = [
+      { label: "Valora Hub", href: "/valora" },
       { label: "Sedang Berjalan (Ongoing)", href: "/comic/list?status=ongoing" },
       { label: "Sudah Tamat (Completed)", href: "/comic/list?status=completed" },
       { label: "Daftar Semua Genre", href: "/comic/advanced-search" }
@@ -55,6 +58,7 @@ function SidebarContent() {
     searchPrefix = '/novel/search?q=';
     menuTitle = "Menu Novel";
     menuLinks = [
+      { label: "Valora Hub", href: "/valora" },
       { label: "Semua Genre", href: "/novel/genres" },
       { label: "Daftar A-Z", href: "/novel/daftar-novel" }
     ];
