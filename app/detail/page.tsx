@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Star, Heart, Clock, Users, BookOpen, Play, Search, Share2, Tag, Bookmark, Home } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import WidgetTitle from '../components/WidgetTitle';
+import { useAuth } from '../components/AuthProvider';
 
 function DetailContent() {
   const searchParams = useSearchParams();
