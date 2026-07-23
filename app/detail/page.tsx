@@ -32,27 +32,22 @@ function DetailContent() {
   }, [epSearch, sortAsc]);
 
   useEffect(() => {
-    const checkBookmark = async () => {
-      if (user && url) {
+    const checkBookmark = () => {
+      if (url) {
         try {
-          const { data } = await supabase
-            .from('user_bookmarks')
-            .select('item_url, category')
-            .eq('user_id', user.id)
-            .eq('item_url', url)
-            .single();
-          
-          if (data) {
+          const bms = JSON.parse(localStorage.getItem('valora_bookmarks') || '[]');
+          const found = bms.find((b: any) => b.item_url === url || b.url === url);
+          if (found) {
             setIsBookmarked(true);
-            setBookmarkCat(data.category || 'Donghua');
+            setBookmarkCat(found.category || 'Donghua');
+          } else {
+            setIsBookmarked(false);
           }
         } catch(e) {}
-      } else {
-        setIsBookmarked(false);
       }
     };
     checkBookmark();
-  }, [url, user]);
+  }, [url]);
 
   useEffect(() => {
     if (!url) return;
@@ -125,16 +120,13 @@ function DetailContent() {
     }
   };
 
-  const toggleBookmark = async () => {
+  const toggleBookmark = () => {
     if (!url || !detail) return;
-    if (!user) {
-      alert('Silakan login untuk menambahkan ke Watchlist!');
-      return;
-    }
-    
     try {
+      const bms: any[] = JSON.parse(localStorage.getItem('valora_bookmarks') || '[]');
       if (isBookmarked) {
-        await supabase.from('user_bookmarks').delete().match({ user_id: user.id, item_url: url });
+        const updated = bms.filter(b => b.item_url !== url && b.url !== url);
+        localStorage.setItem('valora_bookmarks', JSON.stringify(updated));
         setIsBookmarked(false);
       } else {
         let categoryName = 'Donghua';
@@ -143,14 +135,14 @@ function DetailContent() {
         else if (source === 'comic' || source === 'komik') categoryName = 'Komik';
         else if (source === 'webtoons') categoryName = 'webtoon';
         
-        await supabase.from('user_bookmarks').upsert({
-          user_id: user.id,
+        bms.unshift({
           item_url: url,
           title: detail.title,
           poster: detail.thumbnail || detail.poster,
-          category: categoryName
-        }, { onConflict: 'user_id,item_url' });
-        
+          category: categoryName,
+          created_at: new Date().toISOString()
+        });
+        localStorage.setItem('valora_bookmarks', JSON.stringify(bms));
         setIsBookmarked(true);
         setBookmarkCat(categoryName);
       }
@@ -177,10 +169,12 @@ function DetailContent() {
     }
   };
 
-  const changeBookmarkCategory = async (newCat: string) => {
-    if (!url || !user) return;
+  const changeBookmarkCategory = (newCat: string) => {
+    if (!url) return;
     try {
-      await supabase.from('user_bookmarks').update({ category: newCat }).match({ user_id: user.id, item_url: url });
+      const bms: any[] = JSON.parse(localStorage.getItem('valora_bookmarks') || '[]');
+      const updated = bms.map(b => (b.item_url === url || b.url === url) ? { ...b, category: newCat } : b);
+      localStorage.setItem('valora_bookmarks', JSON.stringify(updated));
       setBookmarkCat(newCat);
     } catch (e) {}
   };

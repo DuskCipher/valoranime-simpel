@@ -42,14 +42,10 @@ function WatchContent() {
             body: JSON.stringify({ userId: user.id, action: 'watch', amount: 5 })
           }).then(() => {
             sessionStorage.setItem(`exp_watch_${episodeId}`, 'true');
-            // Refresh session secara background agar exp UI update
-            import('@/lib/supabase').then(({ supabase }) => {
-              supabase.auth.refreshSession();
-            });
           }).catch(console.error);
         }
 
-        // Simpan ke riwayat bacaan / nonton
+        // Simpan ke riwayat bacaan / nonton (LocalStorage)
         try {
           const novelUrl = result.animeId;
           if (novelUrl) {
@@ -65,43 +61,12 @@ function WatchContent() {
               timestamp: Date.now()
             };
             
-            // Local storage fallback for guest
             const historyStr = localStorage.getItem('valora_history');
             let history = historyStr ? JSON.parse(historyStr) : [];
             history = history.filter((h: any) => h.novelUrl !== novelUrl);
             history.unshift(historyItem);
             if (history.length > 50) history.pop();
             localStorage.setItem('valora_history', JSON.stringify(history));
-
-            // Supabase Database Sync
-            if (user) {
-              let categoryName = 'Anime';
-              if (source === 'donghua') categoryName = 'Donghua';
-              else if (source === 'novel') categoryName = 'Novel';
-              else if (source === 'comic' || source === 'komik' || source === 'webtoons') categoryName = 'Komik';
-              
-              // 1. Simpan ke Riwayat
-              supabase.from('user_history').upsert({
-                user_id: user.id,
-                item_url: novelUrl,
-                title: seriesTitle,
-                poster: result.poster,
-                category: categoryName,
-                last_episode: result.title,
-                updated_at: new Date().toISOString()
-              }, { onConflict: 'user_id,item_url' }).then(res => {
-                  if(res.error) console.error("History sync error:", res.error);
-              });
-
-              // 2. Simpan ke Aktivitas
-              supabase.from('user_activities').insert({
-                user_id: user.id,
-                activity_type: 'EPISODE DITONTON',
-                target_title: result.title,
-                target_url: episodeId,
-                xp_earned: 5
-              }).then();
-            }
           }
         } catch (e) {
           console.error("Failed to save history", e);

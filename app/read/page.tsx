@@ -64,9 +64,6 @@ function ReadContent() {
             body: JSON.stringify({ userId: user.id, action: 'read', amount: 5 })
           }).then(() => {
             sessionStorage.setItem(`exp_read_${url}`, 'true');
-            import('@/lib/supabase').then(({ supabase }) => {
-              supabase.auth.refreshSession();
-            });
           }).catch(console.error);
         }
       })
